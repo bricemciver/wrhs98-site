@@ -1,4 +1,5 @@
 import { createRequestHandler } from "react-router";
+import { canonicalStatus, canonicalUrl } from "../app/lib/canonical";
 import { sendOverdueReminders } from "../app/lib/reminders.server";
 
 const REMINDER_CRON = "0 14 * * *";
@@ -16,7 +17,11 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
+    // One official address (SITE_URL): an old domain or "www." redirects there.
+    const canonical = canonicalUrl(request.url, env.SITE_URL);
+    if (canonical) return Response.redirect(canonical, canonicalStatus(request.method));
+
     const response = await requestHandler(request);
     // Responses from the router can have immutable headers; copy to be safe.
     const res = new Response(response.body, response);
