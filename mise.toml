@@ -1,0 +1,16 @@
+[tools]
+node = "24"
+pnpm = "12"
+
+[env]
+# Keep wrangler telemetry quiet in local dev
+WRANGLER_SEND_METRICS = "false"
+
+[tasks.dev]
+run = "pnpm dev"
+[tasks.deploy]
+run = "pnpm run deploy"
+[tasks."db:migrate:local"]
+run = "pnpm db:migrate:local"
+[tasks."db:migrate:remote"]
+run = "pnpm db:migrate:remote"

@@ -1,0 +1,50 @@
+/**
+ * Wrangler configuration for the WRHS Class of '98 site.
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "wrhs98",
+	"compatibility_date": "2026-11-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "./workers/app.ts",
+	// No routes here: add your domain in the Cloudflare dashboard (Workers & Pages → wrhs98 → Settings →
+	// Domains & Routes). Deploys leave a domain added there alone.
+	"workers_dev": false,
+	"preview_urls": false,
+	"vars": {
+		// Uploads are refused once stored media would exceed this (R2 free tier is 10 GB).
+		"MEDIA_QUOTA_GB": "9"
+	},
+	// Your domain, email addresses, and owner details are secrets, not here, so the repo holds nothing specific
+	// to one site: SITE_URL, EMAIL_FROM, EMAIL_REPLY_TO, ADMIN_EMAILS, SITE_CONTACT_NAME, CLASS_FACEBOOK_GROUP_URL.
+	// See .dev.vars.example for what each one means.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			// No database_id: Wrangler finds the database by name on deploy and migrate (and creates it on a first deploy).
+			"database_name": "wrhs98",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "wrhs98-media"
+		}
+	],
+	"triggers": {
+		"crons": [
+			// Daily cleanup of abandoned uploads and expired sessions/tokens.
+			"17 9 * * *",
+			// Owner reminder about items waiting 24+ hours (14:00 UTC = 8–9 AM Central).
+			"0 14 * * *"
+		]
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true
+}

@@ -1,0 +1,36 @@
+# Copy to .dev.vars for local development (never commit .dev.vars).
+# In production set these with: pnpm wrangler secret put NAME
+
+# Google: https://console.cloud.google.com/apis/credentials (OAuth client, Web application)
+#   Authorized redirect URI: https://<your-host>/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Microsoft: https://entra.microsoft.com > App registrations (accounts in any org + personal)
+#   Redirect URI (Web): https://<your-host>/auth/microsoft/callback
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+
+# Resend (magic-link email): https://resend.com/api-keys
+# Leave empty locally: the sign-in link is printed to the dev server console instead.
+RESEND_API_KEY=
+
+# The site's public address, used for links in emails sent outside a page visit (like the daily reminder)
+# and named in every email's footer. Locally: http://localhost:5198. In production: https://your-domain
+SITE_URL=http://localhost:5198
+
+# Sender for all site email, e.g. "Our Class of 1998 <reunion@updates.your-domain>". It must be on the exact
+# domain you verified in Resend. That address can't receive mail, so replies go to EMAIL_REPLY_TO.
+EMAIL_FROM=
+# Where replies to site email go: a real inbox someone reads.
+EMAIL_REPLY_TO=
+
+# Site owners: comma-separated emails. Anyone signing in with one of these verified emails is always an admin,
+# and only owners can make other members admins. Put your own email here to be an admin locally.
+ADMIN_EMAILS=
+
+# Named in every email's footer as the person who runs the site. Leave empty to say "members of the class".
+SITE_CONTACT_NAME=
+
+# Your class's Facebook group, shown on the landing page, member home, and footer. Leave empty to hide.
+CLASS_FACEBOOK_GROUP_URL=

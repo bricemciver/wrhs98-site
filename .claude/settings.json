@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm -s typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm -s test)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm -s test *)",
+      "Bash(pnpm build)",
+      "Bash(pnpm -s build)",
+      "Bash(pnpm db:migrate:local)",
+      "Bash(pnpm -s db:migrate:local)",
+      "Bash(pnpm -s wrangler d1 execute wrhs98 --local *)",
+      "Bash(pnpm wrangler d1 execute wrhs98 --local *)",
+      "Bash(.claude/skills/local-test/scripts/seed-session.sh *)",
+      "Bash(.claude/skills/local-test/scripts/magic-link.sh *)",
+      "Bash(node .claude/skills/local-test/scripts/browser-check.mjs *)"
+    ],
+    "ask": [
+      "Bash(pnpm run deploy*)",
+      "Bash(pnpm deploy*)",
+      "Bash(mise run deploy*)",
+      "Bash(*wrangler deploy*)",
+      "Bash(pnpm db:migrate:remote*)",
+      "Bash(pnpm -s db:migrate:remote*)",
+      "Bash(mise run db:migrate:remote*)",
+      "Bash(*wrangler * --remote*)",
+      "Bash(*wrangler secret*)",
+      "Bash(git push*)"
+    ]
+  }
+}
