@@ -12,8 +12,8 @@ import { pageTitle, SITE_NAME } from "~/lib/school";
 export const meta: Route.MetaFunction = () => [{ title: pageTitle("Sign in") }];
 
 const ERRORS: Record<string, string> = {
-  "email-conflict":
-    "That email is already linked to an account, but this provider couldn't confirm you own it. Please sign in the way you did before (or use an email link).",
+  "unverified-email":
+    "We couldn't confirm your email address with that account. Work and school Microsoft accounts can't be used here. Please sign in with an email link instead.",
   denied: "This account isn't able to access the site. If you think that's a mistake, contact a class admin.",
   state: "Your sign-in session expired. Please try again.",
   provider: "Sign-in with that provider failed. Please try again or use an email link.",

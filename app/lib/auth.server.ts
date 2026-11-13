@@ -17,7 +17,7 @@ export interface VerifiedIdentity {
 }
 
 export class LoginError extends Error {
-  constructor(public code: "email-conflict" | "denied") {
+  constructor(public code: "unverified-email" | "denied") {
     super(code);
   }
 }
@@ -53,6 +53,11 @@ interface UserRow {
  * Finds or creates the user for a verified sign-in, applies roster matching
  * and admin bootstrap, and starts a session. Returns the Set-Cookie header
  * and the user's resulting role.
+ *
+ * Sign-ins whose email the provider hasn't confirmed (Microsoft work/school
+ * accounts, unverified Google addresses) are refused outright. Letting them
+ * create an account would let someone claim a classmate's address ahead of
+ * time and keep access once the real person signs in to that account.
  */
 export async function completeLogin(
   request: Request,
@@ -61,6 +66,7 @@ export async function completeLogin(
   const db = env.DB;
   const email = identity.email.trim().toLowerCase();
   const method = identity.provider ?? "email";
+  if (!identity.emailVerified) throw new LoginError("unverified-email");
 
   let user: UserRow | null = null;
 
@@ -77,14 +83,20 @@ export async function completeLogin(
   if (!user) {
     const byEmail = await db.prepare("SELECT * FROM users WHERE email = ?").bind(email).first<UserRow>();
     if (byEmail) {
-      // Only attach a new sign-in method to an existing account by email when
-      // the provider vouches for the address; otherwise anyone could claim it.
-      if (!identity.emailVerified) throw new LoginError("email-conflict");
+      if (byEmail.email_verified === 0) {
+        // An older account no one ever proved they own. Whoever signed in to it
+        // before can't be trusted, so their sign-in links and sessions go before
+        // the real owner of the address takes it over.
+        await db.batch([
+          db.prepare("DELETE FROM oauth_accounts WHERE user_id = ?").bind(byEmail.id),
+          db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(byEmail.id),
+        ]);
+      }
       user = byEmail;
     } else {
       user = await db
-        .prepare("INSERT INTO users (email, email_verified, name, signup_method) VALUES (?, ?, ?, ?) RETURNING *")
-        .bind(email, identity.emailVerified ? 1 : 0, identity.name, method)
+        .prepare("INSERT INTO users (email, email_verified, name, signup_method) VALUES (?, 1, ?, ?) RETURNING *")
+        .bind(email, identity.name, method)
         .first<UserRow>();
     }
     if (identity.provider && identity.providerUserId && user) {
@@ -99,10 +111,9 @@ export async function completeLogin(
   let role = user.role;
   let classmateId = user.classmate_id;
   const wasLinked = classmateId !== null;
-  const verified = identity.emailVerified || user.email_verified === 1;
 
   // Owners are restored to admin before the denied check, so no one can lock them out.
-  if (verified && adminEmails().has(email)) {
+  if (adminEmails().has(email)) {
     role = "admin";
   } else if (role === "denied") {
     throw new LoginError("denied");
@@ -110,7 +121,7 @@ export async function completeLogin(
 
   // Automatic roster match: a verified email equal to an admin-entered
   // last-known email for a classmate who has not yet been claimed.
-  if (verified && classmateId === null) {
+  if (classmateId === null) {
     const match = await db
       .prepare(
         `SELECT c.id FROM classmates c
@@ -128,12 +139,12 @@ export async function completeLogin(
 
   await db
     .prepare(
-      `UPDATE users SET role = ?, classmate_id = ?, email_verified = MAX(email_verified, ?),
+      `UPDATE users SET role = ?, classmate_id = ?, email_verified = 1,
               name = COALESCE(name, ?), family_name = COALESCE(?, family_name), last_login_at = unixepoch(),
               signup_method = COALESCE(signup_method, ?), last_login_method = ?
         WHERE id = ?`,
     )
-    .bind(role, classmateId, identity.emailVerified ? 1 : 0, identity.name, identity.familyName?.trim() || null, method, method, user.id)
+    .bind(role, classmateId, identity.name, identity.familyName?.trim() || null, method, method, user.id)
     .run();
   if (!wasLinked && classmateId !== null) await fillCurrentLastName(user.id, classmateId);
 

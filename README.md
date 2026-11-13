@@ -15,7 +15,7 @@ Sign-in with Google, Microsoft, or an emailed magic link. No passwords are store
 4. Emails in the `ADMIN_EMAILS` secret are **site owners**: always admins, and the only ones who can make someone else an admin or remove admin.
 5. Members can delete their own account from My Profile. Owners and denied accounts can't.
 
-Microsoft work/school accounts don't count as verified emails, because tenant admins can set arbitrary addresses; those users go through the approval queue. Personal Microsoft accounts and Google accounts are verified.
+Every sign-in needs an email address the provider has confirmed. Personal Microsoft accounts (Outlook, Hotmail, Live) and Google accounts qualify. Microsoft work/school accounts don't, because their admins can set any address, so those are turned away with a request to use an email link instead.
 
 **Privacy model:** admin-entered "last known" contact info, "found online" social links, and notes are visible only to admins. Members choose whether to share their own social links. Members control whether their own city, email, and phone are shown. Media is served only to members, with `private` caching, and every page except `/` sends `X-Robots-Tag: noindex`.
 
