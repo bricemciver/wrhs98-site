@@ -131,6 +131,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
               {SCHOOL.name} · {SCHOOL.location} · Go {SCHOOL.mascot}!
             </p>
             <p>Private site for classmates. Please don&apos;t share photos or contact info outside the class.</p>
+            <p>
+              Run by classmates. Not affiliated with {SCHOOL.name} or {SCHOOL.district}.
+            </p>
           </div>
         </div>
       </footer>
