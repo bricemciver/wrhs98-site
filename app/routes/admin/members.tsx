@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { data, Link, useFetcher } from "react-router";
-import { Alert, Badge, Button, Card, PageHeader, Select } from "~/components/ui";
+import { Alert, Badge, Button, ButtonLink, Card, PageHeader, Select } from "~/components/ui";
 import { memberContext } from "~/context";
 import { activityStmt } from "~/lib/audit.server";
 import { fillCurrentLastName, isOwnerEmail } from "~/lib/auth.server";
@@ -18,6 +18,7 @@ interface Row {
   email: string;
   name: string | null;
   role: Role;
+  created_at: number;
   last_login_at: number | null;
   classmate_id: number | null;
   first_name: string | null;
@@ -33,6 +34,21 @@ interface Row {
 
 const ROLE_LABELS: Record<Role, string> = { member: "Member", admin: "Admin", pending: "Pending", denied: "Denied" };
 
+/** Ways to sort the list, as ?sort= values. Name (grouped by role) is the default. */
+const SORTS = {
+  name: {
+    label: "Name",
+    sql: `CASE u.role WHEN 'admin' THEN 0 WHEN 'member' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END,
+          COALESCE(c.current_last_name, c.last_name, u.name, u.email) COLLATE NOCASE`,
+  },
+  newest: { label: "Newest first", sql: "u.created_at DESC, u.id DESC" },
+  "last-signin": { label: "Last sign-in", sql: "u.last_login_at IS NULL, u.last_login_at DESC, u.id DESC" },
+} as const;
+type Sort = keyof typeof SORTS;
+
+/** Accounts created this recently get a "New" badge. */
+const NEW_FOR_DAYS = 7;
+
 interface Unlinked {
   id: number;
   first_name: string;
@@ -41,15 +57,16 @@ interface Unlinked {
   current_last_name: string | null;
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const me = context.get(memberContext);
+  const requested = new URL(request.url).searchParams.get("sort") ?? "";
+  const sort: Sort = Object.hasOwn(SORTS, requested) ? (requested as Sort) : "name";
   const rows = await env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.role, u.last_login_at, u.classmate_id, c.first_name, c.last_name, c.nickname, c.current_last_name,
+    `SELECT u.id, u.email, u.name, u.role, u.created_at, u.last_login_at, u.classmate_id, c.first_name, c.last_name, c.nickname, c.current_last_name,
             u.signup_method, u.last_login_method,
             (SELECT group_concat(o.provider) FROM oauth_accounts o WHERE o.user_id = u.id) AS providers
        FROM users u LEFT JOIN classmates c ON c.id = u.classmate_id
-      ORDER BY CASE u.role WHEN 'admin' THEN 0 WHEN 'member' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END,
-               COALESCE(c.current_last_name, c.last_name, u.name, u.email) COLLATE NOCASE`,
+      ORDER BY ${SORTS[sort].sql}`,
   ).all<Omit<Row, "owner">>();
   // Roster entries no account has claimed yet, for the link picker.
   const unlinked = await env.DB.prepare(
@@ -69,6 +86,9 @@ export async function loader({ context }: Route.LoaderArgs) {
     unlinked: unlinked.results,
     meId: me.id,
     meOwner: isOwnerEmail(me.email),
+    sort,
+    // Worked out here rather than in the page, so the server and browser agree on which accounts are new.
+    newSince: Math.floor(Date.now() / 1000) - NEW_FOR_DAYS * 24 * 60 * 60,
   };
 }
 
@@ -168,13 +188,36 @@ function SignIn({ row }: { row: Row }) {
   const others = linked.filter((p) => p !== row.signup_method);
   return (
     <span className="flex flex-col">
-      <span>Joined with {signinLabel(row.signup_method)}</span>
+      <span>
+        Joined {formatShortDate(row.created_at)} with {signinLabel(row.signup_method)}
+      </span>
       <span className="text-muted-foreground">
         {row.last_login_at ? `Last: ${formatShortDate(row.last_login_at)}` : "Never signed in"}
         {row.last_login_at && row.last_login_method && ` · ${signinLabel(row.last_login_method)}`}
       </span>
       {others.length > 0 && <span className="text-muted-foreground">Also linked: {others.map(signinLabel).join(", ")}</span>}
     </span>
+  );
+}
+
+function SortLinks({ current }: { current: Sort }) {
+  return (
+    <nav aria-label="Sort the list" className="flex flex-wrap items-center gap-2 mt-4 text-sm">
+      <span className="text-muted-foreground">Sort by:</span>
+      {(Object.keys(SORTS) as Sort[]).map((key) => (
+        <ButtonLink
+          key={key}
+          to={key === "name" ? "?" : `?sort=${key}`}
+          preventScrollReset
+          replace
+          variant={key === current ? "primary" : "secondary"}
+          size="sm"
+          aria-current={key === current ? "true" : undefined}
+        >
+          {SORTS[key].label}
+        </ButtonLink>
+      ))}
+    </nav>
   );
 }
 
@@ -275,7 +318,7 @@ function RosterLink({ row, unlinked, readOnly }: { row: Row; unlinked: Unlinked[
 }
 
 export default function Members({ loaderData }: Route.ComponentProps) {
-  const { rows, unlinked, meId, meOwner, joined } = loaderData;
+  const { rows, unlinked, meId, meOwner, joined, sort, newSince } = loaderData;
   return (
     <>
       <PageHeader
@@ -288,7 +331,8 @@ export default function Members({ loaderData }: Route.ComponentProps) {
           : "Only a site owner can make someone an admin or remove admin. You can approve, link, and manage everyone else."}
       </Alert>
       <JoinedSummary joined={joined} />
-      <div className="overflow-x-auto rounded-lg border bg-card mt-4">
+      <SortLinks current={sort} />
+      <div className="overflow-x-auto rounded-lg border bg-card mt-3">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left">
             <tr>
@@ -306,6 +350,7 @@ export default function Members({ loaderData }: Route.ComponentProps) {
                     <span className="font-medium flex items-center gap-2">
                       {r.name ?? "—"}
                       {r.owner && <Badge>Owner</Badge>}
+                      {r.created_at >= newSince && <Badge tone="accent">New</Badge>}
                     </span>
                     <span className="text-muted-foreground break-words">
                       {/* Let long addresses wrap after the @ instead of mid-word. */}
