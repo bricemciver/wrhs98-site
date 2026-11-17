@@ -13,6 +13,9 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+// Fonts are bundled and served from the site itself, so pages make no requests to other sites.
+import "@fontsource-variable/inter";
+import "@fontsource-variable/source-serif-4/opsz.css";
 import "./app.css";
 import { userContext } from "./context";
 import { SiteHeader } from "./components/site-header";
@@ -21,15 +24,6 @@ import { applyPreview } from "./lib/preview.server";
 import { loadSession } from "./lib/session.server";
 import { normalizeUrl } from "./lib/social";
 import { COLORS, SCHOOL, SITE_NAME } from "./lib/school";
-
-export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap",
-  },
-];
 
 /**
  * Root middleware: rejects cross-site form/API submissions, loads the
